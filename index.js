@@ -31,7 +31,7 @@ app.post('/webhook', async (req, res) => {
     const completion = await axios.post(
       'https://api.openai.com/v1/chat/completions',
       {
-        model: 'gpt-4o',
+        model: 'gpt-4o-mini-2024-07-18',
         messages: [
           { role: 'system', content: atendimentoPadrao },
           { role: 'user', content: messageBody },
