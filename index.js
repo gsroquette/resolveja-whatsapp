@@ -9,7 +9,6 @@ app.use(bodyParser.json());
 
 const PORT = process.env.PORT || 3000;
 
-// Lista de serviços com palavras-chave e tempo estimado
 const servicos = [
   {
     categoria: 'elétrica',
@@ -49,6 +48,35 @@ const servicos = [
   }
 ];
 
+const palavrasDePreco = [
+  'preço', 'quanto custa', 'valor', 'cobra quanto', 'custo', 'qual o valor', 'quanto é', 'preço da visita'
+];
+
+const respostaPreco = `
+💰 Os valores variam conforme o tipo de serviço. Funciona assim:
+
+1️⃣ *Serviços simples (até 1 hora)*  
+• Visita + 1 serviço: *R$ 120*  
+• Visita + 2 serviços: *R$ 160*  
+• Hora extra: *R$ 60*
+
+2️⃣ *Serviços com tempo variável (1 a 2 horas)*  
+• Começa com o pacote acima  
+• Se passar de 1h, avisamos antes e cobramos hora extra
+
+3️⃣ *Serviços complexos (quebra de parede, local difícil)*  
+• Fazemos uma visita de diagnóstico (*R$ 120*)  
+• O valor é abatido se você aprovar o orçamento.
+
+📸 Se puder, envie uma foto do local para analisarmos melhor.
+`;
+
+const encerramentoFrase = `
+✅ *Obrigado pelas informações!*  
+📞 Um técnico da nossa equipe entrará em contato em breve para confirmar os detalhes e combinar a visita.  
+Se precisar de algo mais, estou por aqui! 😊
+`;
+
 const fallbackPrompt = `
 Você é a atendente virtual da Resolve Já – Reparos e Manutenção.
 Seja profissional, clara e simpática. Ofereça ajuda com pequenos reparos domésticos.
@@ -61,13 +89,16 @@ app.post('/webhook', async (req, res) => {
   const userMsg = req.body.Body?.toLowerCase() || '';
   const from = req.body.From;
 
+  const perguntaPreco = palavrasDePreco.some(p => userMsg.includes(p));
   const servicoDetectado = servicos.find(servico =>
     servico.palavras.some(palavra => userMsg.includes(palavra))
   );
 
   let respostaFinal = '';
 
-  if (servicoDetectado) {
+  if (perguntaPreco) {
+    respostaFinal = respostaPreco;
+  } else if (servicoDetectado) {
     respostaFinal =
       `Certo! Atendemos esse tipo de serviço: *${servicoDetectado.categoria}*.\n` +
       `${servicoDetectado.resposta}\n\n` +
@@ -95,6 +126,17 @@ app.post('/webhook', async (req, res) => {
       console.error('Erro na OpenAI:', err.response?.data || err.message);
       respostaFinal = 'Desculpe, houve um erro ao processar sua mensagem. Tente novamente em instantes.';
     }
+  }
+
+  // Detecção de encerramento com base em frases comuns
+  const indiciosDeEncerramento = [
+    'meu endereço é', 'pode vir', 'estou disponível', 'pode agendar',
+    'meu horário é', 'pode ser', 'venha tal dia', 'dia tal',
+    'estarei em casa', 'posso tal hora', 'pode ser amanhã'
+  ];
+  const forneceuDados = indiciosDeEncerramento.some(frase => userMsg.includes(frase));
+  if (forneceuDados) {
+    respostaFinal += `\n\n${encerramentoFrase}`;
   }
 
   try {
